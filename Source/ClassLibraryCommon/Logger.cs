@@ -1,13 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
 using System.Diagnostics;
+using System.Reflection;
+using System.IO;
+
 
 namespace ClassLibraryCommon
 {
+    /// <summary>
+    /// Class for write messages to log file
+    /// </summary>
     public class Logger
     {
         /// <summary>
@@ -21,6 +22,10 @@ namespace ClassLibraryCommon
             elDebug = 3
         }
 
+        /// <summary>
+        /// Create if needed and return instance of logger
+        /// </summary>
+        /// <returns></returns>
         public static Logger GetInstance()
         {
             if (_instance == null)
@@ -45,6 +50,9 @@ namespace ClassLibraryCommon
             GetInstance().WriteLine(message);
         }
 
+        /// <summary>
+        /// Print warning message to logfile.
+        /// </summary>
         public static void Warning(string message)
         {
             if (GetInstance()._logLevel < ELogLevel.elWarnings) return;
@@ -52,6 +60,9 @@ namespace ClassLibraryCommon
             GetInstance().WriteLine(message);
         }
 
+        /// <summary>
+        /// Print info message to logfile.
+        /// </summary>
         public static void Info(string message)
         {
             if (GetInstance()._logLevel < ELogLevel.elInfo) return;
@@ -59,6 +70,9 @@ namespace ClassLibraryCommon
             GetInstance().WriteLine(message);
         }
 
+        /// <summary>
+        /// Print debug message to logfile.
+        /// </summary>
         public static void Debug(string message)
         {
             if (GetInstance()._logLevel < ELogLevel.elDebug) return;
@@ -66,25 +80,31 @@ namespace ClassLibraryCommon
             GetInstance().WriteLine(message);
         }
 
+        /// <summary>
+        /// Write line to log file w/o decorations
+        /// </summary>
         public void WriteLine(string message)
         {
-            if (_fallBack)
+            lock (_logLock)
             {
-                WriteToDebug(message);
-                return;
+                if (_fallBack)
+                {
+                    WriteToDebug(message);
+                    return;
+                }
+
+                _logFile.WriteLine(message);
+                _logFile.Flush();
             }
-
-            _logFile.WriteLine(message);
-            _logFile.Flush();
         }
 
-        ~Logger()
-        {
-            _logFile.Close();
-        }
-
+        /// <summary>
+        /// Private constructor
+        /// </summary>
         private Logger()
         {
+            _logLock = new object();
+            //TODO: add non blocking way to write logs
             string logFilePath = FPPaths.PrependPath("DCSFlightpanels.log");
             try
             {
@@ -96,9 +116,18 @@ namespace ClassLibraryCommon
                 return;
             }
 
-            WriteLine(Environment.NewLine + "=== Log opened UTC " + TStamp());
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            FileVersionInfo fileVersionInfo = FileVersionInfo.GetVersionInfo(assembly.Location);
+            string version = fileVersionInfo.FileVersion;
+
+            WriteLine(Environment.NewLine + "=== Log opened UTC " + TStamp() + ". Version  " + version);
+
         }
 
+        /// <summary>
+        /// Write message to debbuger
+        /// </summary>
+        /// <param name="message"></param>
         private void WriteToDebug(string message)
         {
             System.Diagnostics.Debug.WriteLine(message);
@@ -113,5 +142,6 @@ namespace ClassLibraryCommon
         private StreamWriter _logFile = null;
         private bool _fallBack = false;
         private ELogLevel _logLevel = ELogLevel.elDebug;
+        private object _logLock = null;
     }
 }

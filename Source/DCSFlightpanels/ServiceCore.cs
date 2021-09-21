@@ -31,6 +31,11 @@ namespace DCSFlightpanels
             return true;
         }
 
+        public void Shutdown()
+        {
+            Application.Current.Shutdown(0);
+        }
+
         public void ShowMainWindow()
         {
             Application.Current.MainWindow.Show();

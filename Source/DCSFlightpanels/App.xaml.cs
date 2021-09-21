@@ -59,6 +59,7 @@ namespace DCSFlightpanels
 
         private void NotifyIcon_Quit(object sender, EventArgs args)
         {
+            _serviceCore.Shutdown();
             //MainWindow?.Close();
         }
 
@@ -66,15 +67,6 @@ namespace DCSFlightpanels
         {
 
             //Startup sequince:
-            //Check app paths and create log file
-            //Forcely set FPPath to portable mode
-            FPPaths.SetPortable(true);
-            //Set max log output
-            Logger.SetLogLevel(Logger.ELogLevel.elDebug);
-            Logger.Debug("App dir: " + FPPaths.GetApplicationPath());
-            Logger.Debug("User dir: " + FPPaths.GetUserDataPath());
-
-
 
             //Read command line arguments
             bool hasProfileName = false;
@@ -116,12 +108,19 @@ namespace DCSFlightpanels
                 return;
             }
 
+            //Forcely set FPPath to portable mode
+            FPPaths.SetPortable(true);
+            //Set max log output
+            Logger.SetLogLevel(Logger.ELogLevel.elDebug);
+            Logger.Debug("App dir: " + FPPaths.GetApplicationPath());
+            Logger.Debug("User dir: " + FPPaths.GetUserDataPath());
+
             //Create tray icon
             InitNotificationIcon();
 
             //Creating and push the core of app
             _serviceCore = new ServiceCore();
-            _serviceCore.Init();
+            _ = _serviceCore.Init();
 
             base.OnStartup(e);
         }
