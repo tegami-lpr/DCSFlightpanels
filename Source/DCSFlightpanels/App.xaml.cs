@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Threading;
 using System.Windows;
 using DCSFlightpanels.Properties;
+using ClassLibraryCommon;
 
 namespace DCSFlightpanels
 {
@@ -13,9 +14,9 @@ namespace DCSFlightpanels
     /// </summary>
     public partial class App : Application
     {
-        private static Mutex _mutex;
-        private bool _hasHandle;
-        private System.Windows.Forms.NotifyIcon _notifyIcon;
+        private static Mutex _singletoneMutex;
+        private System.Windows.Forms.NotifyIcon _notifyIcon = null;
+        private ServiceCore _serviceCore = null;
 
         private void InitNotificationIcon()
         {
@@ -48,134 +49,126 @@ namespace DCSFlightpanels
 
         private void NotifyIcon_Show(object sender, EventArgs args)
         {
-            MainWindow?.Show();
-            if (MainWindow != null)
-            {
-                MainWindow.WindowState = WindowState.Normal;
-            }
+            _serviceCore.ShowMainWindow();
+//            MainWindow?.Show();
+//            if (MainWindow != null)
+//            {
+//                MainWindow.WindowState = WindowState.Normal;
+//            }
         }
 
         private void NotifyIcon_Quit(object sender, EventArgs args)
         {
-            MainWindow?.Close();
+            //MainWindow?.Close();
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            try
+
+            //Startup sequince:
+            //Check app paths and create log file
+            //Forcely set FPPath to portable mode
+            FPPaths.SetPortable(true);
+            //Set max log output
+            Logger.SetLogLevel(Logger.ELogLevel.elDebug);
+            Logger.Debug("App dir: " + FPPaths.GetApplicationPath());
+            Logger.Debug("User dir: " + FPPaths.GetUserDataPath());
+
+
+
+            //Read command line arguments
+            bool hasProfileName = false;
+            foreach (string arg in e.Args)
             {
-                InitNotificationIcon();
-                                
-                Settings.Default.LoadStreamDeck = true; //Default is loading Stream Deck.
-                Settings.Default.Save();
-
-                //DCSFlightpanels.exe -OpenProfile="C:\Users\User\Documents\Spitfire_Saitek_DCS_Profile.bindings"
-                //DCSFlightpanels.exe -OpenProfile='C:\Users\User\Documents\Spitfire_Saitek_DCS_Profile.bindings'
-
-                //1 Check for start arguments.
-                //2 If argument and profile exists close running instance, start this with profile chosen
-                var closeCurrentInstance = false;
-
-                if (e != null)
+                if (arg.ToLower().Contains(Constants.CommandLineArgumentStartMinimized.ToLower()))
                 {
-                    try
+                    Settings.Default.RunMinimized = true;
+                }
+                else if (arg.ToLower().Contains(Constants.CommandLineArgumentOpenProfile.ToLower()))
+                {
+                    //Example: DCSFlightpanels.exe -OpenProfile="C:\Users\User\Documents\Spitfire_Saitek_DCS_Profile.bindings"
+                    if (arg.Contains("NEWPROFILE"))
                     {
-                        foreach (var arg in e.Args)
-                        {
-                            if (arg.ToLower().Contains(Constants.CommandLineArgumentStartMinimized.ToLower()))
-                            {
-                                Settings.Default.RunMinimized = true;
-                                Settings.Default.Save();
-                            }
-                            if (arg.ToLower().Contains(Constants.CommandLineArgumentOpenProfile.ToLower()))
-                            {
-                                if (arg.Contains("NEWPROFILE"))
-                                {
-                                    Settings.Default.LastProfileFileUsed = string.Empty;
-                                }
-                                else
-                                {
-                                    Settings.Default.LastProfileFileUsed = arg.ToLower().Replace("\"", string.Empty).Replace("'", string.Empty).Replace(Constants.CommandLineArgumentOpenProfile.ToLower(), string.Empty);
-                                }
-                                Settings.Default.Save();
-                                closeCurrentInstance = true;
-                            }
-                            else if (arg.ToLower().Contains(Constants.CommandLineArgumentNoStreamDeck.ToLower()))
-                            {
-                                Settings.Default.LoadStreamDeck = false;
-                                Settings.Default.Save();
-                            }
-                        }
+                        Settings.Default.LastProfileFileUsed = string.Empty;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        MessageBox.Show("Invalid startup arguments." + Environment.NewLine + ex.Message);
-                        throw;
+                        Settings.Default.LastProfileFileUsed = arg.ToLower().Replace("\"", string.Empty).Replace("'", string.Empty).Replace(Constants.CommandLineArgumentOpenProfile.ToLower(), string.Empty);
+                        hasProfileName = true;
                     }
+                    //closeCurrentInstance = true;
                 }
-
-                // get application GUID as defined in AssemblyInfo.cs
-                var appGuid = "{23DB8D4F-D76E-4DF4-B04F-4F4EB0A8E992}";
-
-                // unique id for global mutex - Global prefix means it is global to the machine
-                string mutexId = "Global\\" + appGuid;
-
-                // Need a place to store a return value in Mutex() constructor call
-                var allowEveryoneRule = new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), MutexRights.FullControl, AccessControlType.Allow);
-                var securitySettings = new MutexSecurity();
-                securitySettings.AddAccessRule(allowEveryoneRule);
-
-                _mutex = new Mutex(false, mutexId, out var createdNew, securitySettings);
-
-                _hasHandle = false;
-                try
+                else if (arg.ToLower().Contains(Constants.CommandLineArgumentNoStreamDeck.ToLower()))
                 {
-                    _hasHandle = _mutex.WaitOne(2000, false);
+                    Settings.Default.LoadStreamDeck = false;
                 }
-                catch (AbandonedMutexException)
-                {
-                    // Log the fact that the mutex was abandoned in another process,
-                    // it will still get acquired
-                    //_hasHandle = true;
-                }
-
-                if (!closeCurrentInstance && !_hasHandle)
-                {
-                    MessageBox.Show("DCSFlightpanels is already running..");
-                    Current.Shutdown(0);
-                    Environment.Exit(0);
-                }
-                if (closeCurrentInstance && !_hasHandle)
-                {
-                    foreach (var process in Process.GetProcesses())
-                    {
-                        if (process.ProcessName.Equals(Process.GetCurrentProcess().ProcessName) && process.Id != Process.GetCurrentProcess().Id)
-                        {
-                            process.Kill();
-                            break;
-                        }
-                    }
-                    // Wait for process to close
-                    Thread.Sleep(2000);
-                }
-                base.OnStartup(e);
             }
-            catch (Exception ex)
+
+            //Check if we alone
+            if (CheckIfAnotherInstance())
             {
-                MessageBox.Show("Error starting DCSFlightpanels." + Environment.NewLine + ex.Message + Environment.NewLine + ex.StackTrace);
-                Current.Shutdown(0);
-                Environment.Exit(0);
+                //TODO: send another process message to showing up
+                if (hasProfileName)
+                {
+                    //TODO: send profile to running app for apply
+                }
+                Shutdown(10);
+                return;
             }
+
+            //Create tray icon
+            InitNotificationIcon();
+
+            //Creating and push the core of app
+            _serviceCore = new ServiceCore();
+            _serviceCore.Init();
+
+            base.OnStartup(e);
         }
 
         protected override void OnExit(ExitEventArgs e)
         {
-            _notifyIcon.Visible = false;
-            if (_hasHandle)
+            //Releasing Mutex without checks, because only we can use it.
+            _singletoneMutex.ReleaseMutex();
+
+            if (_serviceCore != null)
             {
-                _mutex?.ReleaseMutex();
+                //_serviceCore.Dispose();
             }
+
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.Visible = false;
+            }
+
             base.OnExit(e);
+        }
+
+        protected static bool CheckIfAnotherInstance()
+        {
+            // get application GUID as defined in AssemblyInfo.cs
+            string appGuid = "{23DB8D4F-D76E-4DF4-B04F-4F4EB0A8E992}";
+
+            // unique id for global mutex - Global prefix means it is global to the machine
+            string mutexId = "Global\\" + appGuid;
+
+            // Need a place to store a return value in Mutex() constructor call
+            MutexAccessRule allowEveryoneRule = new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), MutexRights.FullControl, AccessControlType.Allow);
+            MutexSecurity securitySettings = new MutexSecurity();
+            securitySettings.AddAccessRule(allowEveryoneRule);
+            _singletoneMutex = new Mutex(false, mutexId, out _, securitySettings);
+            bool acquired = false;
+            try
+            {
+                //Try to acquire mutex. If can, then we alone.
+                acquired = _singletoneMutex.WaitOne(10, false);
+            }
+            catch (AbandonedMutexException)
+            {
+                //Mutex was abandoned by previous us.
+            }
+            //If we can't aquire mutex, then another copy of us present
+            return !acquired;
         }
     }
 }

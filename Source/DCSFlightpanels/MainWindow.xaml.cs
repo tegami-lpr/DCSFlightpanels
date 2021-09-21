@@ -1234,7 +1234,7 @@
 
                 // Wtf is hanging?
                 Application.Current.Shutdown();
-                Environment.Exit(0);
+                //Environment.Exit(0); //Tegami - disable for proper Application shutdown
             }
             catch (Exception ex)
             {

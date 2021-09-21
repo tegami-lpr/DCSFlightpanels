@@ -201,6 +201,7 @@
     <Compile Include="Radios\PreProgrammed\RadioPanelPZ69UserControlP47D.xaml.cs">
       <DependentUpon>RadioPanelPZ69UserControlP47D.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ServiceCore.cs" />
     <Compile Include="Shared\CommonUI.cs" />
     <Compile Include="Shared\StreamDeckUICommon.cs" />
     <Compile Include="CustomControls\PZ69GenericTextBox.cs" />
@@ -848,7 +849,7 @@
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.6.1">
       <Visible>False</Visible>
-      <ProductName>Microsoft .NET Framework 4.6.1 %28x86 and x64%29</ProductName>
+      <ProductName>Microsoft .NET Framework 4.6.1 %28x86 и x64%29</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
     <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
