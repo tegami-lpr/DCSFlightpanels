@@ -87,6 +87,8 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FPPaths.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="Common.cs" />
     <Compile Include="CommonEnums.cs" />
     <Compile Include="DCSFPProfile.cs" />
