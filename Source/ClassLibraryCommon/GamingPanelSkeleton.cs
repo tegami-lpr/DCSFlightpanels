@@ -16,11 +16,8 @@
             _productId = (int)gamingPanelsEnum;
         }
 
-        public GamingPanelSkeleton(GamingPanelVendorEnum gamingPanelVendor, GamingPanelEnum gamingPanelsEnum, string serialNumber)
+        public GamingPanelSkeleton(GamingPanelVendorEnum gamingPanelVendor, GamingPanelEnum gamingPanelsEnum, string serialNumber) : this(gamingPanelVendor, gamingPanelsEnum)
         {
-            _gamingPanelsEnum = gamingPanelsEnum;
-            _vendorId = (int)gamingPanelVendor;
-            _productId = (int)gamingPanelsEnum;
             _serialNumber = serialNumber;
         }
 
