@@ -43,7 +43,7 @@ namespace ClassLibraryCommon
             string dataPath = string.Empty;
             do
             {
-                if (_staticPath.Length != 0)
+                if (!string.IsNullOrEmpty(_staticPath))
                 {
                     dataPath = _staticPath;
                     break;
@@ -74,7 +74,7 @@ namespace ClassLibraryCommon
                 }
             } while (false);
 
-            if (relativePath.Length == 0)
+            if (string.IsNullOrEmpty(relativePath))
             {
                 return dataPath;
             }
@@ -96,7 +96,7 @@ namespace ClassLibraryCommon
         public static string GetUserDataPath()
         {
             string appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return appDataDir.Length == 0 ? string.Empty : appDataDir + "\\DCSFlightpanels";
+            return string.IsNullOrEmpty(appDataDir) ? string.Empty : appDataDir + "\\DCSFlightpanels";
         }
 
 
